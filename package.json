@@ -1,0 +1,14 @@
+{
+  "name": "fumikiri-annai-yoyogi-hachiman",
+  "version": "1.0.0",
+  "description": "How long until I can cross the level crossing?",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "csv-parse": "^4.15.4"
+  }
+}
