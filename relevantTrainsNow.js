@@ -1,4 +1,4 @@
-const {readFileSync} = require('fs');
+const {readFileSync, writeFileSync} = require('fs');
 const {SANGUBASHI, SHINJUKU, YOYOGI_HACHIMAN, YOYOGI_UEHARA} = require('./constants');
 const averageTimes = require('./calculateEstimates');
 
@@ -139,7 +139,7 @@ const getTimeline = (timelineAgg, trains) => {
         if (firstTrain[1] < (secondTrain ? secondTrain[1] : 0)) {
             return getTimeline([...timelineAgg, [false, firstTrain[1]]], rest);
         } else {
-           return getTimeline(timelineAgg, rest);
+            return getTimeline(timelineAgg, rest);
         }
     } else {
         return getTimeline([...timelineAgg, [true, firstTrain[0]]], trains);
@@ -153,7 +153,7 @@ const resolveTimeline = (timelineAgg, {inboundTimeline, outboundTimeline}) => {
     if (!inboundTimeline.length || !outboundTimeline.length) {
         return timelineAgg;
     }
-    const {outboundState, inboundState, overallState, time} = timelineAgg[timelineAgg.length - 1];
+    const {outboundState, inboundState, time} = timelineAgg[timelineAgg.length - 1];
     const [[firstInboundState, firstInboundTime], ...restInbound] = inboundTimeline;
     const [[firstOutboundState, firstOutboundTime], ...restOutbound] = outboundTimeline;
     if (firstInboundTime < time) {
@@ -164,11 +164,21 @@ const resolveTimeline = (timelineAgg, {inboundTimeline, outboundTimeline}) => {
 
     if (firstInboundTime < firstOutboundTime) {
         return resolveTimeline(
-            [...timelineAgg, {outboundState, inboundState: firstInboundState, overallState: outboundState || firstInboundState, time: firstInboundTime}],
+            [...timelineAgg, {
+                outboundState,
+                inboundState: firstInboundState,
+                overallState: outboundState || firstInboundState,
+                time: firstInboundTime
+            }],
             {inboundTimeline: restInbound, outboundTimeline});
     } else {
         return resolveTimeline(
-            [...timelineAgg, {inboundState, outboundState: firstOutboundState, overallState: inboundState || firstOutboundState, time: firstOutboundTime}],
+            [...timelineAgg, {
+                inboundState,
+                outboundState: firstOutboundState,
+                overallState: inboundState || firstOutboundState,
+                time: firstOutboundTime
+            }],
             {inboundTimeline, outboundTimeline: restOutbound});
     }
 };
@@ -176,7 +186,11 @@ const resolveTimeline = (timelineAgg, {inboundTimeline, outboundTimeline}) => {
 const resolvedTimeline = resolveTimeline(
     [{outboundState: true, inboundState: true, overallState: true, time: startTime}],
     {inboundTimeline, outboundTimeline})
-    .map(({overallState, time}) => ({overallState, time}))
+    .map(({overallState, time}, index, array) => ({
+        overallState,
+        time,
+        durationSeconds: array[index + 1] ? (array[index + 1].time - time) / 1000 : 60
+    }))
     .reduce((agg, cur) => {
         if (!agg.length) {
             return [cur];
@@ -194,8 +208,14 @@ console.log(JSON.stringify({
     endTime: epochMillisToHumanTimeString(endTime),
     inboundTimeline: inboundTimeline.map(([state, time]) => [state, epochMillisToHumanTimeString(time)]),
     outboundTimeline: outboundTimeline.map(([state, time]) => [state, epochMillisToHumanTimeString(time)]),
-    resolvedTimeline: resolvedTimeline.map(({overallState, time}) => ({state: overallState ? "closed" : "open", time: epochMillisToHumanTimeString(time)}))
+    resolvedTimeline: resolvedTimeline.map(({overallState, time}) => ({
+        state: overallState ? "closed" : "open",
+        time: epochMillisToHumanTimeString(time)
+    }))
 }, null, 2));
+
+
+writeFileSync('relevant-trains-now.json', JSON.stringify(resolvedTimeline));
 
 
 // .forEach(({yoyogiHachimanTime: {estimatedClose, estimatedOpen, ...rest}}) => console.log(
