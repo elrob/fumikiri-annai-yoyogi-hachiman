@@ -9,20 +9,17 @@ const averageTimes = require('./calculateEstimates');
   .forEach(timetable => {
       const relevantTimetable = JSON.parse(readFileSync(`relevant-timetable-${timetable}.json`, 'utf8'));
 
+      const ONE_SECOND_MILLIS = 1000;
+      const ONE_MINUTE_MILLIS = 60 * ONE_SECOND_MILLIS;
+      const ONE_HOUR_MILLIS = 60 * ONE_MINUTE_MILLIS;
 
       const timeStringToEpochMillis = time => {
         const [hour, minute] = time.split(':');
-        const date = new Date();
-        date.setHours(parseInt(hour), parseInt(minute), 0, 0)
-        return date.getTime();
+        const hours = parseInt(hour);
+        const trainTimetableHours = hours > 3 ? hours : hours + 24;
+        const minutes = parseInt(minute);
+        return (trainTimetableHours * ONE_HOUR_MILLIS) + (minutes * ONE_MINUTE_MILLIS);
       };
-
-      const ONE_SECOND_MILLIS = 1000;
-      const ONE_MINUTE_MILLIS = 60 * ONE_SECOND_MILLIS;
-// const DISPLAY_AFTER = now - (2 * ONE_MINUTE_MILLIS);
-// const DISPLAY_BEFORE = now + (60 * ONE_MINUTE_MILLIS);
-
-// const shouldDisplay = date => date >= DISPLAY_AFTER && date < DISPLAY_BEFORE
 
       const getEstimatedTimes = (isInbound, isStopping, isStoppingAtUehara, hachiman, uehara, shinjuku) =>
         isInbound
@@ -117,21 +114,16 @@ const averageTimes = require('./calculateEstimates');
       const outbound =
         relevantTrainsWithEstimatedCloseOpenTimes
           .filter(({isInbound}) => !isInbound)
-          .map(({estimatedClose, estimatedOpen}) =>
-            [estimatedClose, estimatedOpen]);
+          .map(({estimatedClose, estimatedOpen}) => [estimatedClose, estimatedOpen]);
 
       const inbound =
         relevantTrainsWithEstimatedCloseOpenTimes
           .filter(({isInbound}) => isInbound)
-          .map(({estimatedClose, estimatedOpen}) =>
-              [estimatedClose, estimatedOpen]
-            // [new Date(estimatedClose).toTimeString(), new Date(estimatedOpen).toTimeString()]
-          );
+          .map(({estimatedClose, estimatedOpen}) => [estimatedClose, estimatedOpen]);
 
       const startTime = relevantTrainsWithEstimatedCloseOpenTimes[0].estimatedClose;
       const endTime = relevantTrainsWithEstimatedCloseOpenTimes[relevantTrainsWithEstimatedCloseOpenTimes.length - 1].estimatedOpen;
 
-// const array = Array((endTime - startTime) / 1000).fill(0).map((_, i) => startTime + (i * 1000));
       const getTimeline = (timelineAgg, trains) => {
         if (!trains.length) {
           return timelineAgg;
@@ -220,26 +212,5 @@ const averageTimes = require('./calculateEstimates');
 
 
       writeFileSync(`open-close-times-${timetable}.json`, JSON.stringify(resolvedTimeline));
-
-
-// .forEach(({yoyogiHachimanTime: {estimatedClose, estimatedOpen, ...rest}}) => console.log(
-//     JSON.stringify({
-//         estimatedClose: new Date(estimatedClose).toTimeString(),
-//         estimatedOpen: new Date(estimatedOpen).toTimeString(),
-//         ...rest
-//     })
-// ));
-// .forEach(({yoyogiHachimanTime: {isInbound, hachiman, shinjuku, uehara}}) => console.log(
-//     [
-//         isInbound ? 1 : 0,
-//         hachiman && hachiman.a || '',
-//         hachiman && hachiman.d || '',
-//         shinjuku && shinjuku.a || '',
-//         shinjuku && shinjuku.d || '',
-//         uehara && uehara.a || '',
-//         uehara && uehara.d || ''
-//     ].join(',')
-//     // JSON.stringify(yoyogiHachimanTime)
-// ));
     }
   );

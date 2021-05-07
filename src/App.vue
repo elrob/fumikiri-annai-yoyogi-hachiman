@@ -30,19 +30,21 @@ const getDisplayableCurrentTime = () => new Date().toLocaleTimeString('ja-JP')
 
 const getCurrentStateAndTimeline = () => {
   const now = secondsToMillis(millisToSeconds(Date.now()));
+  const startOfDay = new Date(now).setHours(0,0,0,0);
   const lowerBound = now - secondsToMillis(30);
   const upperBound = now + secondsToMillis(3600);
   const filteredOpenCloseTimes = openCloseTimes
       .filter(({durationSeconds}) => durationSeconds > 0)
+      .map(({time, ...rest}) => ({...rest, time: time + startOfDay}))
       .filter(({time}, index, times) =>
           time >= lowerBound && time < upperBound
           || (times[index + 1] && times[index + 1].time >= lowerBound && times[index + 1].time < upperBound))
       .map((openCloseTime, index, times) => index === 0 && times[index + 1]
           ? {...openCloseTime, durationSeconds: millisToSeconds(times[index + 1].time - lowerBound)}
           : openCloseTime);
-  const [one, two] = filteredOpenCloseTimes;
-  console.log(JSON.stringify({one, two}));
-  const currentState = openCloseTimes.find(({time}, index, times) => time <= now && times[index + 1].time > now)?.overallState;
+  const currentState = filteredOpenCloseTimes
+      .find(({time}, index, times) => time <= now && times[index + 1] && times[index + 1].time > now)
+      ?.overallState;
   return {openCloseTimes: filteredOpenCloseTimes, currentState};
 }
 
