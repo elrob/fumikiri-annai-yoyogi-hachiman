@@ -1,7 +1,7 @@
 const parse = require('csv-parse/lib/sync');
 const {readFileSync} = require('fs');
 
-const csvData = readFileSync('fumikiri-annai - YoyogiHachimanFumikiri1.csv', 'utf8');
+const csvData = readFileSync('./data/fumikiri-annai - YoyogiHachimanFumikiri1.csv', 'utf8');
 
 const records = parse(csvData, {columns: true});
 

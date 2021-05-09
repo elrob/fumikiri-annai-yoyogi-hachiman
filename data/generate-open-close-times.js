@@ -7,7 +7,7 @@ const averageTimes = require('./calculateEstimates');
   'holiday'
 ]
   .forEach(timetable => {
-      const relevantTimetable = JSON.parse(readFileSync(`relevant-timetable-${timetable}.json`, 'utf8'));
+      const relevantTimetable = JSON.parse(readFileSync(`./data/relevant-timetable-${timetable}.json`, 'utf8'));
 
       const TIMETABLE_DAY_SWITCH_HOUR = 3;
       const ONE_SECOND_MILLIS = 1000;
@@ -23,6 +23,8 @@ const averageTimes = require('./calculateEstimates');
         const minutes = parseInt(minute);
         return (trainTimetableHours * ONE_HOUR_MILLIS) + (minutes * ONE_MINUTE_MILLIS);
       };
+
+      const timetableSwitchTimeEpochMillis = timeStringToEpochMillis(`${TIMETABLE_DAY_SWITCH_HOUR}:00`);
 
       const getEstimatedTimes = (isInbound, isStopping, isStoppingAtUehara, hachiman, uehara, shinjuku) =>
         isInbound
@@ -124,9 +126,6 @@ const averageTimes = require('./calculateEstimates');
           .filter(({isInbound}) => isInbound)
           .map(({estimatedClose, estimatedOpen}) => [estimatedClose, estimatedOpen]);
 
-      const startTime = relevantTrainsWithEstimatedCloseOpenTimes[0].estimatedClose;
-      const endTime = relevantTrainsWithEstimatedCloseOpenTimes[relevantTrainsWithEstimatedCloseOpenTimes.length - 1].estimatedOpen;
-
       const getTimeline = (timelineAgg, trains) => {
         if (!trains.length) {
           return timelineAgg;
@@ -183,19 +182,19 @@ const averageTimes = require('./calculateEstimates');
       };
 
       const openCloseTimeline = resolveTimeline(
-        [{outboundState: true, inboundState: true, overallState: true, time: startTime}],
+        [{outboundState: false, inboundState: false, overallState: false, time: timetableSwitchTimeEpochMillis}],
         {inboundTimeline, outboundTimeline})
-        .map(({overallState, time}, index, array) => ({
-          overallState,
-          time,
-          durationSeconds: array[index + 1] ? (array[index + 1].time - time) / ONE_SECOND_MILLIS : ONE_MINUTE_SECONDS
-        }))
         .reduce((agg, cur) => {
           if (!agg.length) {
             return [cur];
           }
           return agg[agg.length - 1].overallState !== cur.overallState ? [...agg, cur] : agg;
-        }, []);
+        }, [])
+        .map(({overallState, time}, index, array) => ({
+          overallState,
+          time,
+          durationSeconds: array[index + 1] ? (array[index + 1].time - time) / ONE_SECOND_MILLIS : ONE_MINUTE_SECONDS
+        }));
 
       const lastTrain = openCloseTimeline[openCloseTimeline.length - 1];
 
@@ -203,9 +202,7 @@ const averageTimes = require('./calculateEstimates');
       const endOfDayOpenPeriod = {
         overallState: false,
         time: lastTrainPassedTime,
-        durationSeconds:
-          (timeStringToEpochMillis(`${TIMETABLE_DAY_SWITCH_HOUR}:00`) - lastTrainPassedTime + (24 * ONE_HOUR_MILLIS))
-          / ONE_SECOND_MILLIS
+        durationSeconds: (timetableSwitchTimeEpochMillis - lastTrainPassedTime + (24 * ONE_HOUR_MILLIS)) / ONE_SECOND_MILLIS
       };
 
       const resolvedTimeline = [...openCloseTimeline, endOfDayOpenPeriod];
@@ -213,19 +210,14 @@ const averageTimes = require('./calculateEstimates');
       const epochMillisToHumanTimeString = epochMillis => new Date(epochMillis).toTimeString();
 
       console.log(JSON.stringify({
-        outbound: outbound.map(([estClose, estOpen]) => [epochMillisToHumanTimeString(estClose), epochMillisToHumanTimeString(estOpen)]),
-        inbound: inbound.map(([estClose, estOpen]) => [epochMillisToHumanTimeString(estClose), epochMillisToHumanTimeString(estOpen)]),
-        startTime: epochMillisToHumanTimeString(startTime),
-        endTime: epochMillisToHumanTimeString(endTime),
-        inboundTimeline: inboundTimeline.map(([state, time]) => [state, epochMillisToHumanTimeString(time)]),
-        outboundTimeline: outboundTimeline.map(([state, time]) => [state, epochMillisToHumanTimeString(time)]),
-        resolvedTimeline: resolvedTimeline.map(({overallState, time}) => ({
+        resolvedTimeline: resolvedTimeline.map(({overallState, time, durationSeconds}) => ({
           state: overallState ? "closed" : "open",
-          time: epochMillisToHumanTimeString(time)
+          time: epochMillisToHumanTimeString(time),
+          durationSeconds
         }))
       }, null, 2));
 
 
-      writeFileSync(`open-close-times-${timetable}.json`, JSON.stringify(resolvedTimeline));
+      writeFileSync(`./data/open-close-times-${timetable}.json`, JSON.stringify(resolvedTimeline));
     }
   );
