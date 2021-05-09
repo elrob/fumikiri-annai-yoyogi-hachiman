@@ -21,7 +21,9 @@
 </template>
 
 <script>
-import openCloseTimes from '../open-close-times-holiday.json'
+import openCloseTimesHoliday from '../data/open-close-times-holiday.json'
+import openCloseTimesWeekday from '../data/open-close-times-weekday.json'
+import publicHolidays from '../data/public-holidays.json'
 
 const secondsToMillis = seconds => seconds * 1000;
 const millisToSeconds = millis => Math.floor(millis / 1000);
@@ -29,7 +31,12 @@ const ONE_HOUR_SECONDS = 60 * 60;
 const ONE_DAY_MILLIS = secondsToMillis(24 * ONE_HOUR_SECONDS);
 const TIMETABLE_DAY_SWITCH_HOUR = 3;
 
-const FAKE_NOW_MILLIS = undefined; // for testing: new Date().setHours(4, 44, 7)
+const FAKE_NOW_MILLIS =
+    // normal:
+    undefined;
+    // for testing:
+    // new Date("2021-05-10T00:00:00Z");
+
 const getNowDate = () => new Date(FAKE_NOW_MILLIS || new Date().setMilliseconds(0));
 const getNowMillis = () => getNowDate().getTime();
 
@@ -37,13 +44,17 @@ const getDisplayableCurrentTime = () => getNowDate().toLocaleTimeString('ja-JP')
 
 const getCurrentStateAndTimeline = () => {
   const nowMillis = getNowMillis();
-  const nowDate = new Date(nowMillis);
-  const startOfTimetableDay = new Date(nowDate.getHours() >= TIMETABLE_DAY_SWITCH_HOUR ? nowMillis : nowMillis - ONE_DAY_MILLIS)
-      .setHours(0, 0, 0, 0);
   const lowerBound = nowMillis - secondsToMillis(30);
   const upperBound = nowMillis + secondsToMillis(ONE_HOUR_SECONDS);
 
-  const filteredOpenCloseTimes = openCloseTimes
+  const startOfTimetableDay = new Date(new Date(nowMillis).getHours() >= TIMETABLE_DAY_SWITCH_HOUR ? nowMillis : nowMillis - ONE_DAY_MILLIS)
+      .setHours(0, 0, 0, 0);
+  const startOfTimetableDayDate = new Date(startOfTimetableDay);
+  const isHoliday = [0, 6].includes(startOfTimetableDayDate.getDay()) // Sunday or Saturday
+      || publicHolidays[startOfTimetableDayDate.getFullYear()]
+          .includes(new Date(startOfTimetableDayDate.setHours(9)).toISOString().split('T')[0]);
+
+  const filteredOpenCloseTimes = (isHoliday ? openCloseTimesHoliday : openCloseTimesWeekday)
       .filter(({durationSeconds}) => durationSeconds > 0)
       .map(({time, ...rest}) => ({...rest, time: time + startOfTimetableDay}))
       .filter(({time}, index, times) =>
