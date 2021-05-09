@@ -9,14 +9,17 @@ const averageTimes = require('./calculateEstimates');
   .forEach(timetable => {
       const relevantTimetable = JSON.parse(readFileSync(`relevant-timetable-${timetable}.json`, 'utf8'));
 
+      const TIMETABLE_DAY_SWITCH_HOUR = 3;
       const ONE_SECOND_MILLIS = 1000;
-      const ONE_MINUTE_MILLIS = 60 * ONE_SECOND_MILLIS;
-      const ONE_HOUR_MILLIS = 60 * ONE_MINUTE_MILLIS;
+      const ONE_MINUTE_SECONDS = 60;
+      const ONE_MINUTE_MILLIS = ONE_MINUTE_SECONDS * ONE_SECOND_MILLIS;
+      const ONE_HOUR_MINUTES = 60;
+      const ONE_HOUR_MILLIS = ONE_HOUR_MINUTES * ONE_MINUTE_MILLIS;
 
       const timeStringToEpochMillis = time => {
         const [hour, minute] = time.split(':');
         const hours = parseInt(hour);
-        const trainTimetableHours = hours > 3 ? hours : hours + 24;
+        const trainTimetableHours = hours >= TIMETABLE_DAY_SWITCH_HOUR ? hours : hours + 24;
         const minutes = parseInt(minute);
         return (trainTimetableHours * ONE_HOUR_MILLIS) + (minutes * ONE_MINUTE_MILLIS);
       };
@@ -179,13 +182,13 @@ const averageTimes = require('./calculateEstimates');
         }
       };
 
-      const resolvedTimeline = resolveTimeline(
+      const openCloseTimeline = resolveTimeline(
         [{outboundState: true, inboundState: true, overallState: true, time: startTime}],
         {inboundTimeline, outboundTimeline})
         .map(({overallState, time}, index, array) => ({
           overallState,
           time,
-          durationSeconds: array[index + 1] ? (array[index + 1].time - time) / 1000 : 60
+          durationSeconds: array[index + 1] ? (array[index + 1].time - time) / ONE_SECOND_MILLIS : ONE_MINUTE_SECONDS
         }))
         .reduce((agg, cur) => {
           if (!agg.length) {
@@ -194,6 +197,18 @@ const averageTimes = require('./calculateEstimates');
           return agg[agg.length - 1].overallState !== cur.overallState ? [...agg, cur] : agg;
         }, []);
 
+      const lastTrain = openCloseTimeline[openCloseTimeline.length - 1];
+
+      const lastTrainPassedTime = lastTrain.time + (lastTrain.durationSeconds * ONE_SECOND_MILLIS);
+      const endOfDayOpenPeriod = {
+        overallState: false,
+        time: lastTrainPassedTime,
+        durationSeconds:
+          (timeStringToEpochMillis(`${TIMETABLE_DAY_SWITCH_HOUR}:00`) - lastTrainPassedTime + (24 * ONE_HOUR_MILLIS))
+          / ONE_SECOND_MILLIS
+      };
+
+      const resolvedTimeline = [...openCloseTimeline, endOfDayOpenPeriod];
 
       const epochMillisToHumanTimeString = epochMillis => new Date(epochMillis).toTimeString();
 

@@ -25,27 +25,41 @@ import openCloseTimes from '../open-close-times-holiday.json'
 
 const secondsToMillis = seconds => seconds * 1000;
 const millisToSeconds = millis => Math.floor(millis / 1000);
+const ONE_HOUR_SECONDS = 60 * 60;
+const ONE_DAY_MILLIS = secondsToMillis(24 * ONE_HOUR_SECONDS);
+const TIMETABLE_DAY_SWITCH_HOUR = 3;
 
-const getDisplayableCurrentTime = () => new Date().toLocaleTimeString('ja-JP')
+const FAKE_NOW_MILLIS = undefined; // for testing: new Date().setHours(4, 44, 7)
+const getNowDate = () => new Date(FAKE_NOW_MILLIS || new Date().setMilliseconds(0));
+const getNowMillis = () => getNowDate().getTime();
+
+const getDisplayableCurrentTime = () => getNowDate().toLocaleTimeString('ja-JP')
 
 const getCurrentStateAndTimeline = () => {
-  const now = secondsToMillis(millisToSeconds(Date.now()));
-  const startOfDay = new Date(now).setHours(0,0,0,0);
-  const lowerBound = now - secondsToMillis(30);
-  const upperBound = now + secondsToMillis(3600);
+  const nowMillis = getNowMillis();
+  const nowDate = new Date(nowMillis);
+  const startOfTimetableDay = new Date(nowDate.getHours() >= TIMETABLE_DAY_SWITCH_HOUR ? nowMillis : nowMillis - ONE_DAY_MILLIS)
+      .setHours(0, 0, 0, 0);
+  const lowerBound = nowMillis - secondsToMillis(30);
+  const upperBound = nowMillis + secondsToMillis(ONE_HOUR_SECONDS);
+
   const filteredOpenCloseTimes = openCloseTimes
       .filter(({durationSeconds}) => durationSeconds > 0)
-      .map(({time, ...rest}) => ({...rest, time: time + startOfDay}))
+      .map(({time, ...rest}) => ({...rest, time: time + startOfTimetableDay}))
       .filter(({time}, index, times) =>
           time >= lowerBound && time < upperBound
           || (times[index + 1] && times[index + 1].time >= lowerBound && times[index + 1].time < upperBound))
       .map((openCloseTime, index, times) => index === 0 && times[index + 1]
           ? {...openCloseTime, durationSeconds: millisToSeconds(times[index + 1].time - lowerBound)}
           : openCloseTime);
-  const currentState = filteredOpenCloseTimes
-      .find(({time}, index, times) => time <= now && times[index + 1] && times[index + 1].time > now)
-      ?.overallState;
-  return {openCloseTimes: filteredOpenCloseTimes, currentState};
+
+  const adjustedFilteredOpenCloseTimes = filteredOpenCloseTimes.length
+      ? filteredOpenCloseTimes
+      : [{time: lowerBound, overallState: false, durationSeconds: millisToSeconds(upperBound - lowerBound)}];
+  const currentState = adjustedFilteredOpenCloseTimes
+      .find(({time}, index, times) => time <= nowMillis && times[index + 1] && times[index + 1].time > nowMillis)
+      ?.overallState || false;
+  return {openCloseTimes: adjustedFilteredOpenCloseTimes, currentState};
 }
 
 
@@ -67,12 +81,12 @@ export default {
     const that = this;
     this.clockInterval = setInterval(() => {
       that.displayTime = getDisplayableCurrentTime()
-    }, 1000);
+    }, secondsToMillis(1));
     this.refreshDisplayInterval = setInterval(() => {
       const {openCloseTimes, currentState} = getCurrentStateAndTimeline();
       that.currentState = currentState;
       that.openCloseTimes = openCloseTimes;
-    }, 1000)
+    }, secondsToMillis(2))
   }
 }
 </script>
