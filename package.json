@@ -6,6 +6,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "gh-pages": "npm run build && git checkout gh-pages && rm -rf css && rm -rf js && cp -r dist/* . && git add -A",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
