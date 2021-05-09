@@ -135,6 +135,8 @@ header > h1 {
 
 #timeline {
   padding: 5em 0 0;
+  position: relative;
+  z-index: -1;
 }
 
 #now-marker {
@@ -143,7 +145,7 @@ header > h1 {
   background: #082A5B;
   margin: 3em 0 0 0;
   width: 100%;
-  position: fixed;
+  position: absolute;
 }
 
 #open-close-times-list {
