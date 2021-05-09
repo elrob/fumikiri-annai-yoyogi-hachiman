@@ -197,7 +197,6 @@ const averageTimes = require('./calculateEstimates');
         }));
 
       const lastTrain = openCloseTimeline[openCloseTimeline.length - 1];
-
       const lastTrainPassedTime = lastTrain.time + (lastTrain.durationSeconds * ONE_SECOND_MILLIS);
       const endOfDayOpenPeriod = {
         overallState: false,
