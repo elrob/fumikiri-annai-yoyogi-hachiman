@@ -41,7 +41,7 @@ const getNowDate = () => new Date(FAKE_NOW_MILLIS || new Date().setMilliseconds(
 const getNowMillis = () => getNowDate().getTime();
 
 const dateTimeDisplayOptions = {
-  weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric',
+  weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric',
   hour: 'numeric', minute: 'numeric', second: 'numeric'
 };
 const getDisplayableCurrentTime = () => new Intl.DateTimeFormat('ja-JP', dateTimeDisplayOptions).format(getNowDate());
